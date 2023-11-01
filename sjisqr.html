@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>QR Code Generator</title>
+    <style>
+      .qr-element {
+        padding: 20px;
+        margin-bottom: 20px;
+        display: block;
+      }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/encoding-japanese/2.0.0/encoding.min.js"></script>
+  </head>
+  <body>
+    <textarea
+      id="text-input"
+      oninput="inputChars()"
+      style="width: 600px; height: 400px"
+    ></textarea
+    ><br />
+    <div id="input-chars"></div>
+    <button onclick="generateQRCode()">Generate QR Code</button>
+    <button onclick="resetText()">Reset</button>
+
+    <div id="qrcode-area"></div>
+
+    <script>
+      function resetText() {
+        document.getElementById("text-input").value = "";
+        inputChars();
+      }
+
+      function inputChars() {
+        const textInput = document.getElementById("text-input").value;
+        const inputChars = textInput.length;
+        document.getElementById(
+          "input-chars"
+        ).innerText = `Input Chars: ${inputChars}`;
+      }
+
+      function generateQRCode() {
+        let text = document.getElementById("text-input").value;
+        const str_sjis = Encoding.convert(text, "SJIS"); // Shift-JISにエンコード
+
+        const qrcodeArea = document.getElementById("qrcode-area");
+        $(qrcodeArea).empty();
+
+        const chunkSize = 1200;
+
+        const numChunks = Math.ceil(str_sjis.length / chunkSize);
+
+        const splitInfo = document.createElement("div");
+        splitInfo.innerHTML = `The text has been split into ${numChunks} parts.`;
+        qrcodeArea.appendChild(splitInfo);
+
+        for (let i = 0; i < numChunks; i++) {
+          const chunk = str_sjis.slice(i * chunkSize, (i + 1) * chunkSize);
+
+          const qrDiv = document.createElement("div");
+          qrDiv.className = "qr-element";
+
+          try {
+            $(qrDiv).qrcode({
+              width: 450,
+              height: 450,
+              text: chunk,
+            });
+          } catch (e) {
+            alert("Illegal data set: " + e.toString());
+          }
+
+          qrcodeArea.appendChild(qrDiv);
+        }
+      }
+      inputChars();
+    </script>
+  </body>
+</html>
