@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Sample Code</title>
+    <style>
+      .qr-element {
+        padding: 20px;
+        margin-bottom: 20px;
+        display: block;
+      }
+      .file-list-item {
+        margin-bottom: 5px;
+      }
+      #status {
+        margin-bottom: 20px;
+      }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/encoding-japanese/2.0.0/encoding.min.js"></script>
+  </head>
+  <body>
+    <input
+      type="file"
+      id="file-input"
+      multiple
+      onchange="handleFiles(this.files)"
+    />
+    <div id="status"></div>
+    <span>-</span>
+    <button id="auto-button">Auto</button>
+    <button id="pause-button" style="display: none">Pause</button>
+    <button id="next-button" style="display: none">Next</button>
+    <button id="prev-button" style="display: none">Previous</button>
+    <div id="qrcode-area"></div>
+    <div id="file-list"></div>
+
+    <script>
+      const fileList = [];
+      let currentFileIndex = 0;
+      let currentChunkIndex = 0;
+      let currentFileText = "";
+      let numChunks = 0;
+      let totalChunks = 0;
+      let currentProgress = 0;
+      let autoTimer = null;
+
+      function handleFiles(selectedFiles) {
+        Array.from(selectedFiles).forEach((file) => {
+          if (
+            fileList.length < 10 &&
+            !fileList.map((f) => f.name).includes(file.name)
+          ) {
+            fileList.push(file);
+          }
+        });
+        calculateTotalChunks();
+        updateFileList();
+      }
+
+      function calculateTotalChunks() {
+        totalChunks = fileList.reduce((sum, file) => {
+          const chunkSize = 1200;
+          return sum + Math.ceil(file.size / chunkSize);
+        }, 0);
+      }
+
+      function updateFileList() {
+        const fileListContainer = document.getElementById("file-list");
+        fileListContainer.innerHTML = "";
+
+        fileList.forEach((file, index) => {
+          const fileListItem = document.createElement("div");
+          fileListItem.className = "file-list-item";
+          fileListItem.textContent = file.name;
+
+          const generateButton = document.createElement("button");
+          generateButton.textContent = "Generate";
+          generateButton.onclick = function () {
+            currentFileIndex = index;
+            currentChunkIndex = 0;
+            generateQRCode(file, index);
+          };
+
+          const resetButton = document.createElement("button");
+          resetButton.textContent = "Remove";
+          resetButton.onclick = function () {
+            resetFile(index);
+          };
+
+          fileListItem.appendChild(generateButton);
+          fileListItem.appendChild(resetButton);
+
+          fileListContainer.appendChild(fileListItem);
+        });
+      }
+
+      function resetFile(index) {
+        fileList.splice(index, 1);
+        calculateTotalChunks();
+        updateFileList();
+        resetQRCode();
+      }
+
+      function resetQRCode() {
+        const qrcodeArea = document.getElementById("qrcode-area");
+        qrcodeArea.innerHTML = "";
+        document.getElementById("prev-button").style.display = "none";
+        document.getElementById("next-button").style.display = "none";
+        document.getElementById("auto-button").style.display = "inline";
+        if (autoTimer) {
+          clearInterval(autoTimer);
+          autoTimer = null;
+        }
+        document.getElementById("pause-button").style.display = "none";
+      }
+
+      function generateQRCode(file, index) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          currentFileText = e.target.result;
+          const chunkSize = 1200;
+          numChunks = Math.ceil(currentFileText.length / chunkSize);
+          displayStatus();
+          generateCurrentQRCode();
+        };
+        reader.readAsText(file);
+      }
+
+      function displayStatus() {
+        const statusDiv = document.getElementById("status");
+        currentProgress = fileList
+          .slice(0, currentFileIndex)
+          .reduce((sum, file) => {
+            const chunkSize = 1200;
+            return sum + Math.ceil(file.size / chunkSize);
+          }, currentChunkIndex);
+
+        statusDiv.textContent = `Progress: ${
+          currentProgress + 1
+        }/${totalChunks} - File: ${fileList[currentFileIndex].name} (${
+          currentChunkIndex + 1
+        }/${numChunks})`;
+      }
+
+      function generateCurrentQRCode() {
+        if (currentChunkIndex < numChunks && currentChunkIndex >= 0) {
+          const chunkSize = 1200;
+          const header = `${fileList[currentFileIndex].name} ${
+            currentChunkIndex + 1
+          }/${numChunks}\n`;
+          const chunk = currentFileText.slice(
+            currentChunkIndex * chunkSize,
+            (currentChunkIndex + 1) * chunkSize
+          );
+          const qrText = header + chunk;
+          const str_sjis = Encoding.convert(qrText, "SJIS");
+          const qrcodeArea = document.getElementById("qrcode-area");
+          qrcodeArea.innerHTML = "";
+
+          const qrDiv = document.createElement("div");
+          qrDiv.className = "qr-element";
+
+          try {
+            $(qrDiv).qrcode({
+              width: 500,
+              height: 500,
+              text: str_sjis,
+            });
+          } catch (e) {
+            alert("Illegal data set: " + e.toString());
+          }
+
+          qrcodeArea.appendChild(qrDiv);
+          displayStatus();
+          updateNavigationButtons();
+        }
+      }
+
+      function updateNavigationButtons() {
+        const prevButton = document.getElementById("prev-button");
+        const nextButton = document.getElementById("next-button");
+
+        if (currentChunkIndex > 0 || currentFileIndex > 0) {
+          prevButton.style.display = "inline";
+          prevButton.onclick = function () {
+            if (currentChunkIndex > 0) {
+              currentChunkIndex--;
+            } else if (currentFileIndex > 0) {
+              currentFileIndex--;
+              const prevFile = fileList[currentFileIndex];
+              const chunkSize = 1200;
+              const prevFileChunks = Math.ceil(prevFile.size / chunkSize);
+              currentChunkIndex = prevFileChunks - 1;
+              generateQRCode(prevFile, currentFileIndex);
+              return;
+            }
+            generateCurrentQRCode();
+          };
+        } else {
+          prevButton.style.display = "none";
+        }
+
+        if (
+          currentChunkIndex < numChunks - 1 ||
+          currentFileIndex < fileList.length - 1
+        ) {
+          nextButton.style.display = "inline";
+          nextButton.onclick = function () {
+            if (currentChunkIndex < numChunks - 1) {
+              currentChunkIndex++;
+            } else if (currentFileIndex < fileList.length - 1) {
+              currentFileIndex++;
+              currentChunkIndex = 0;
+              generateQRCode(fileList[currentFileIndex], currentFileIndex);
+              return;
+            }
+            generateCurrentQRCode();
+          };
+        } else {
+          nextButton.style.display = "none";
+        }
+
+        document.getElementById("auto-button").onclick = function () {
+          autoTimer = setInterval(function () {
+            const nextButton = document.getElementById("next-button");
+            if (nextButton.style.display !== "none") {
+              nextButton.click();
+            } else {
+              clearInterval(autoTimer);
+              document.getElementById("pause-button").style.display = "none";
+              document.getElementById("auto-button").style.display = "inline";
+            }
+          }, 500);
+          document.getElementById("auto-button").style.display = "none";
+          document.getElementById("pause-button").style.display = "inline";
+        };
+
+        document.getElementById("pause-button").onclick = function () {
+          if (autoTimer) {
+            clearInterval(autoTimer);
+            autoTimer = null;
+          }
+          document.getElementById("pause-button").style.display = "none";
+          document.getElementById("auto-button").style.display = "inline";
+        };
+      }
+    </script>
+  </body>
+</html>
