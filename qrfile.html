@@ -72,7 +72,13 @@
         fileList.forEach((file, index) => {
           const fileListItem = document.createElement("div");
           fileListItem.className = "file-list-item";
-          fileListItem.textContent = file.name;
+
+          const chunkSize = 1200; // QRコードに分割するためのチャンクサイズ
+          const numFileChunks = Math.ceil(file.size / chunkSize); // ファイルをチャンクサイズで割り、必要なチャンク数を計算
+
+          // ファイル名、サイズ（バイト単位）、分割数を表示
+          const fileSize = file.size.toLocaleString() + " bytes";
+          fileListItem.textContent = `${file.name} - ${fileSize} - ${numFileChunks} parts`;
 
           const generateButton = document.createElement("button");
           generateButton.textContent = "Generate";
