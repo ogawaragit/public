@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gifshot/build/gifshot.min.js"></script>
+  </head>
+  <body>
+    <input type="file" id="fileInput" />
+    <br /><br />
+    <label for="chunkSize">Chunk Size:</label>
+    <input type="number" id="chunkSize" value="500" />
+    <br /><br />
+    <button id="generateButton">Generate</button>
+    <br /><br />
+    <div id="fileInfo"></div>
+    <br /><br />
+    <div id="gifContainer"></div>
+
+    <script>
+      document
+        .getElementById("fileInput")
+        .addEventListener("change", handleFileSelect);
+      document
+        .getElementById("generateButton")
+        .addEventListener("click", generateQRCodes);
+
+      let fileContent = "";
+      let qrCodes = [];
+
+      function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            const decoder = new TextDecoder("shift-jis");
+            fileContent = decoder.decode(e.target.result);
+            console.log("File loaded");
+            document.getElementById(
+              "fileInfo"
+            ).innerText = `File Name: ${file.name}, File Size: ${file.size} bytes, Character Count: ${fileContent.length}`;
+          };
+          reader.readAsArrayBuffer(file);
+        } else {
+          console.log("No file selected");
+        }
+      }
+
+      function generateQRCodes() {
+        console.log("Starting code generation");
+        const chunkSize = parseInt(
+          document.getElementById("chunkSize").value,
+          10
+        );
+        qrCodes = [];
+        for (let i = 0; i < fileContent.length; i += chunkSize) {
+          const chunk = fileContent.substring(i, i + chunkSize);
+          QRCode.toDataURL(
+            chunk,
+            { errorCorrectionLevel: "H", width: 256 },
+            function (err, url) {
+              if (err) {
+                console.error("code generation error:", err);
+                throw err;
+              }
+              qrCodes.push(url);
+              console.log(
+                `code generated: ${qrCodes.length}/${Math.ceil(
+                  fileContent.length / chunkSize
+                )}`
+              );
+              if (
+                qrCodes.length === Math.ceil(fileContent.length / chunkSize)
+              ) {
+                console.log("Starting generation");
+                createGIF();
+              }
+            }
+          );
+        }
+      }
+
+      function createGIF() {
+        gifshot.createGIF(
+          {
+            images: qrCodes,
+            gifWidth: 256,
+            gifHeight: 256,
+            interval: 1,
+          },
+          function (obj) {
+            if (!obj.error) {
+              const image = obj.image;
+              console.log("generation successful");
+
+              const gifContainer = document.getElementById("gifContainer");
+              gifContainer.innerHTML = `<img src="${image}" alt="">`;
+              console.log("displayed");
+            } else {
+              console.error("generation error:", obj.error);
+            }
+          }
+        );
+      }
+    </script>
+  </body>
+</html>
