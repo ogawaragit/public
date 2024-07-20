@@ -7,15 +7,12 @@
   </head>
   <body>
     <input type="file" id="fileInput" />
-    <br /><br />
     <label for="chunkSize">Chunk Size:</label>
     <input type="number" id="chunkSize" value="500" />
-    <br /><br />
     <button id="generateButton">Generate</button>
-    <br /><br />
     <div id="fileInfo"></div>
-    <br /><br />
     <div id="gifContainer"></div>
+    <div id="chunkInfo"></div>
 
     <script>
       document
@@ -57,7 +54,7 @@
           const chunk = fileContent.substring(i, i + chunkSize);
           QRCode.toDataURL(
             chunk,
-            { errorCorrectionLevel: "H", width: 256 },
+            { errorCorrectionLevel: "H", width: 512 },
             function (err, url) {
               if (err) {
                 console.error("code generation error:", err);
@@ -73,20 +70,23 @@
                 qrCodes.length === Math.ceil(fileContent.length / chunkSize)
               ) {
                 console.log("Starting generation");
-                createGIF();
+                createGIF(chunkSize);
               }
             }
           );
         }
       }
 
-      function createGIF() {
+      function createGIF(chunkSize) {
         gifshot.createGIF(
           {
             images: qrCodes,
-            gifWidth: 256,
-            gifHeight: 256,
+            gifWidth: 512,
+            gifHeight: 512,
             interval: 1,
+            numFrames: qrCodes.length,
+            frameDuration: 1,
+            loop: 0,
           },
           function (obj) {
             if (!obj.error) {
@@ -94,8 +94,11 @@
               console.log("generation successful");
 
               const gifContainer = document.getElementById("gifContainer");
-              gifContainer.innerHTML = `<img src="${image}" alt="">`;
+              gifContainer.innerHTML = `<img src="${image}" alt="" style="width: 512px; height: 512px;">`;
               console.log("displayed");
+
+              const chunkInfo = document.getElementById("chunkInfo");
+              chunkInfo.innerText = `Total Chunks: ${qrCodes.length}`;
             } else {
               console.error("generation error:", obj.error);
             }
