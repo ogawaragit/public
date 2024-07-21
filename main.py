@@ -4,14 +4,14 @@ import cv2
 from pyzbar import pyzbar
 import os
 
-
 # QRコードデータの処理を行う関数
 def process_qr_data(qr_data):
     global current_file, current_splits, total_splits
     try:
         header, *data = qr_data.splitlines()
-        file_name, split_info = header.split(' ')
-        split_index, split_total = map(int, split_info.split('/'))
+        file_name, split_index, split_total = header.split(',')
+        split_index = int(split_index)
+        split_total = int(split_total)
 
         # 適切なQRコードの場合のみ処理
         if file_name and split_index <= split_total:
@@ -24,7 +24,6 @@ def process_qr_data(qr_data):
     except ValueError:
         # QRコードのデータが期待される形式でない場合は無視
         return
-
 
 # QRコードデータを受け入れる関数
 def accept_qr_data(file_name, split_index, split_total, data):
@@ -44,7 +43,6 @@ def accept_qr_data(file_name, split_index, split_total, data):
         reset_reading()
         status_label.config(text=f"ファイル '{file_name}' の読み込みが完了し保存されました")
 
-
 # ファイルを保存する関数
 def save_file(file_name, data, mode='w'):
     save_directory = 'Saved_Files'
@@ -54,12 +52,10 @@ def save_file(file_name, data, mode='w'):
     with open(file_path, mode, encoding='shift_jis') as file:
         file.write('\n'.join(data) + '\n')
 
-
 # リストボックスを更新する関数
 def update_listbox(file_name, split_index):
     listbox.insert(tk.END, f"{file_name} {split_index}/{total_splits}")
     listbox.see(tk.END)
-
 
 # カメラから映像を更新する関数
 def update_video():
@@ -86,7 +82,6 @@ def update_video():
         lbl_video.configure(image=imgtk)
     root.after(10, update_video)
 
-
 # 読み取りをリセットする関数
 def reset_reading():
     global current_file, current_splits, total_splits
@@ -95,7 +90,6 @@ def reset_reading():
     total_splits = 0
     listbox.delete(0, tk.END)
     status_label.config(text="QRコードのスキャンをリセットしました。")
-
 
 # ウィンドウの初期化
 root = tk.Tk()
