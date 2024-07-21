@@ -24,10 +24,12 @@
 
       let fileContent = "";
       let qrCodes = [];
+      let fileName = "";
 
       function handleFileSelect(event) {
         const file = event.target.files[0];
         if (file) {
+          fileName = file.name;
           const reader = new FileReader();
           reader.onload = function (e) {
             const decoder = new TextDecoder("shift-jis");
@@ -50,10 +52,14 @@
           10
         );
         qrCodes = [];
+        const totalChunks = Math.ceil(fileContent.length / chunkSize);
         for (let i = 0; i < fileContent.length; i += chunkSize) {
           const chunk = fileContent.substring(i, i + chunkSize);
+          const chunkNumber = Math.floor(i / chunkSize) + 1;
+          const tag = `<${fileName},${chunkNumber},${totalChunks}>`;
+          const chunkWithTag = tag + chunk;
           QRCode.toDataURL(
-            chunk,
+            chunkWithTag,
             { errorCorrectionLevel: "H", width: 512 },
             function (err, url) {
               if (err) {
@@ -62,22 +68,18 @@
               }
               qrCodes.push(url);
               console.log(
-                `code generated: ${qrCodes.length}/${Math.ceil(
-                  fileContent.length / chunkSize
-                )}`
+                `code generated: ${qrCodes.length}/${totalChunks}`
               );
-              if (
-                qrCodes.length === Math.ceil(fileContent.length / chunkSize)
-              ) {
-                console.log("Starting generation");
-                createGIF(chunkSize);
+              if (qrCodes.length === totalChunks) {
+                console.log("Starting GIF generation");
+                createGIF();
               }
             }
           );
         }
       }
 
-      function createGIF(chunkSize) {
+      function createGIF() {
         gifshot.createGIF(
           {
             images: qrCodes,
@@ -91,16 +93,16 @@
           function (obj) {
             if (!obj.error) {
               const image = obj.image;
-              console.log("generation successful");
+              console.log("GIF generation successful");
 
               const gifContainer = document.getElementById("gifContainer");
               gifContainer.innerHTML = `<img src="${image}" alt="" style="width: 512px; height: 512px;">`;
-              console.log("displayed");
+              console.log("GIF displayed");
 
               const chunkInfo = document.getElementById("chunkInfo");
               chunkInfo.innerText = `Total Chunks: ${qrCodes.length}`;
             } else {
-              console.error("generation error:", obj.error);
+              console.error("GIF generation error:", obj.error);
             }
           }
         );
